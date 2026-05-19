@@ -144,22 +144,30 @@ func runUpgrade(host, fwPath string) {
 		os.Exit(exitTransfer)
 	}
 
-	if err := waitForReboot(p, flagRebootTimeout); err != nil {
-		fmt.Fprintf(os.Stderr, "reboot wait: %v\n", err)
+	rebootErr := waitForReboot(p, flagRebootTimeout)
+
+	// Always attempt a final version query — the printer may have rebooted
+	// between our 2s polls (sawDown==false) yet still completed successfully.
+	after, qerr := p.GetVar("appl.name")
+	if qerr != nil {
+		if rebootErr != nil {
+			fmt.Fprintf(os.Stderr, "reboot wait: %v\n", rebootErr)
+		}
+		fmt.Fprintf(os.Stderr, "post-reboot version query failed: %v\n", qerr)
 		fmt.Fprintln(os.Stderr, "Firmware was sent. Power-cycle the printer and run `zfw info` to confirm state.")
 		os.Exit(exitReboot)
 	}
 
-	after, err := p.GetVar("appl.name")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "post-reboot version query failed: %v\n", err)
-		os.Exit(exitReboot)
+	if after == targetVersion {
+		fmt.Printf("Upgrade complete: %s → %s\n", current, after)
+		return
 	}
-	fmt.Printf("Upgrade complete: %s → %s\n", current, after)
-	if after != targetVersion {
-		fmt.Fprintf(os.Stderr, "WARNING: post-reboot version %q does not match target %q\n", after, targetVersion)
-		os.Exit(exitReboot)
+
+	if rebootErr != nil {
+		fmt.Fprintf(os.Stderr, "reboot wait: %v\n", rebootErr)
 	}
+	fmt.Fprintf(os.Stderr, "WARNING: post-reboot version %q does not match target %q\n", after, targetVersion)
+	os.Exit(exitReboot)
 }
 
 func pushFirmware(p *printer.Printer, fw *firmware.File) error {

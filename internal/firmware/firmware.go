@@ -12,7 +12,6 @@ var (
 )
 
 type File struct {
-	path    string
 	size    int64
 	model   string
 	version string
@@ -41,7 +40,7 @@ func Open(path string) (*File, error) {
 		f.Close()
 		return nil, err
 	}
-	out := &File{path: path, size: st.Size(), f: f}
+	out := &File{size: st.Size(), f: f}
 	if m := modelRe.Find(header[:n]); m != nil {
 		out.model = string(m)
 	}

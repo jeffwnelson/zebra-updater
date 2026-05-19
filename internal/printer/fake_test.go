@@ -5,19 +5,16 @@ import (
 	"io"
 	"net"
 	"strings"
-	"sync"
 	"testing"
 )
 
 // fakeServer accepts a single connection, reads SGD getvar lines, and
 // replies with values from a map. Unknown vars get an empty quoted string.
 type fakeServer struct {
-	t       *testing.T
-	listen  net.Listener
-	addr    string
-	vars    map[string]string
-	mu      sync.Mutex
-	dropMid bool // if true, close the connection after one response
+	t      *testing.T
+	listen net.Listener
+	addr   string
+	vars   map[string]string
 }
 
 func newFakeServer(t *testing.T, vars map[string]string) *fakeServer {
@@ -59,7 +56,6 @@ func (f *fakeServer) serve() {
 func (f *fakeServer) handle(conn net.Conn) {
 	defer conn.Close()
 	r := bufio.NewReader(conn)
-	served := 0
 	for {
 		line, err := r.ReadString('\n')
 		if err == io.EOF {
@@ -69,18 +65,11 @@ func (f *fakeServer) handle(conn net.Conn) {
 			return
 		}
 		name := extractGetVarName(line)
-		f.mu.Lock()
 		val, ok := f.vars[name]
-		drop := f.dropMid
-		f.mu.Unlock()
 		if !ok {
 			val = ""
 		}
 		conn.Write([]byte("\"" + val + "\"\r\n"))
-		served++
-		if drop && served == 1 {
-			return
-		}
 	}
 }
 

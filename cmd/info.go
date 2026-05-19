@@ -21,7 +21,7 @@ var infoCmd = &cobra.Command{
 			{"Firmware      ", "appl.name"},
 			{"Free flash    ", "memory.flash_free"},
 			{"Host status   ", "device.host_status"},
-			{"Link status   ", "ip.addr"},
+			{"IP address    ", "ip.addr"},
 		}
 		for _, fld := range fields {
 			val, err := p.GetVar(fld.varName)

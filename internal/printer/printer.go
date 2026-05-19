@@ -48,6 +48,9 @@ func (p *Printer) Send(r io.Reader, progress func(written int64)) error {
 	for {
 		n, readErr := r.Read(buf)
 		if n > 0 {
+			if err := conn.SetWriteDeadline(time.Now().Add(p.Timeout)); err != nil {
+				return fmt.Errorf("set write deadline: %w", err)
+			}
 			if _, werr := conn.Write(buf[:n]); werr != nil {
 				return fmt.Errorf("write to printer: %w", werr)
 			}
