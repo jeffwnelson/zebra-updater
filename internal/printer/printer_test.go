@@ -37,3 +37,18 @@ func TestGetVarConnectFails(t *testing.T) {
 		t.Fatal("expected connect error, got nil")
 	}
 }
+
+func TestPing(t *testing.T) {
+	fake := newFakeServer(t, map[string]string{})
+	p := &Printer{Host: fake.host(), Port: fake.port(), Timeout: time.Second}
+	if err := p.Ping(); err != nil {
+		t.Errorf("Ping: %v", err)
+	}
+}
+
+func TestPingUnreachable(t *testing.T) {
+	p := &Printer{Host: "127.0.0.1", Port: 1, Timeout: 200 * time.Millisecond}
+	if err := p.Ping(); err == nil {
+		t.Error("expected error, got nil")
+	}
+}

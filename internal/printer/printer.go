@@ -23,6 +23,15 @@ func (p *Printer) dial() (net.Conn, error) {
 	return d.Dial("tcp", p.address())
 }
 
+// Ping verifies the printer accepts a TCP connection on the configured port.
+func (p *Printer) Ping() error {
+	conn, err := p.dial()
+	if err != nil {
+		return err
+	}
+	return conn.Close()
+}
+
 // GetVar performs one SGD getvar query, opening and closing a connection.
 func (p *Printer) GetVar(name string) (string, error) {
 	conn, err := p.dial()
