@@ -1,0 +1,5 @@
+zfw
+/dist/
+*.test
+*.out
+.DS_Store
