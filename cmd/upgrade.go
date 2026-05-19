@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/jeffwnelson/zebra-updater/internal/firmware"
 	"github.com/jeffwnelson/zebra-updater/internal/printer"
@@ -137,6 +138,64 @@ func runUpgrade(host, fwPath string) {
 		}
 	}
 
-	// Task 10 will fill in the actual upgrade flow here.
-	fmt.Println("(upgrade flow not yet implemented — see Task 10)")
+	if err := pushFirmware(p, fw); err != nil {
+		fmt.Fprintf(os.Stderr, "transfer failed: %v\n", err)
+		fmt.Fprintln(os.Stderr, "WARNING: printer may be in a partially flashed state — run `zfw info` to inspect before retrying")
+		os.Exit(exitTransfer)
+	}
+
+	if err := waitForReboot(p, flagRebootTimeout); err != nil {
+		fmt.Fprintf(os.Stderr, "reboot wait: %v\n", err)
+		fmt.Fprintln(os.Stderr, "Firmware was sent. Power-cycle the printer and run `zfw info` to confirm state.")
+		os.Exit(exitReboot)
+	}
+
+	after, err := p.GetVar("appl.name")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "post-reboot version query failed: %v\n", err)
+		os.Exit(exitReboot)
+	}
+	fmt.Printf("Upgrade complete: %s → %s\n", current, after)
+	if after != targetVersion {
+		fmt.Fprintf(os.Stderr, "WARNING: post-reboot version %q does not match target %q\n", after, targetVersion)
+		os.Exit(exitReboot)
+	}
+}
+
+func pushFirmware(p *printer.Printer, fw *firmware.File) error {
+	total := fw.Size()
+	last := time.Now()
+	return p.Send(fw.Reader(), func(written int64) {
+		if time.Since(last) < 500*time.Millisecond && written < total {
+			return
+		}
+		last = time.Now()
+		fmt.Printf("\r  %.1f / %.1f MiB", float64(written)/(1<<20), float64(total)/(1<<20))
+		if written >= total {
+			fmt.Println()
+		}
+	})
+}
+
+// waitForReboot polls the printer's TCP port until we observe a "down" sample
+// followed by an "up" sample, indicating the flash cycle completed.
+func waitForReboot(p *printer.Printer, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	sawDown := false
+	for time.Now().Before(deadline) {
+		err := p.Ping()
+		if err != nil && !sawDown {
+			fmt.Println("Printer is flashing...")
+			sawDown = true
+		}
+		if err == nil && sawDown {
+			fmt.Println("Printer is back online.")
+			return nil
+		}
+		time.Sleep(2 * time.Second)
+	}
+	if !sawDown {
+		return fmt.Errorf("printer never went offline within %s; flash may not have started", timeout)
+	}
+	return fmt.Errorf("printer did not come back online within %s", timeout)
 }
