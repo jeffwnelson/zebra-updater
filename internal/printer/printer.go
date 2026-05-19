@@ -3,6 +3,7 @@ package printer
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"net"
 	"time"
 )
@@ -30,6 +31,38 @@ func (p *Printer) Ping() error {
 		return err
 	}
 	return conn.Close()
+}
+
+// Send streams data to the printer over a single TCP connection.
+// progress is invoked periodically with the cumulative bytes written.
+// progress may be nil.
+func (p *Printer) Send(r io.Reader, progress func(written int64)) error {
+	conn, err := p.dial()
+	if err != nil {
+		return fmt.Errorf("connect %s: %w", p.address(), err)
+	}
+	defer conn.Close()
+
+	buf := make([]byte, 32*1024)
+	var total int64
+	for {
+		n, readErr := r.Read(buf)
+		if n > 0 {
+			if _, werr := conn.Write(buf[:n]); werr != nil {
+				return fmt.Errorf("write to printer: %w", werr)
+			}
+			total += int64(n)
+			if progress != nil {
+				progress(total)
+			}
+		}
+		if readErr == io.EOF {
+			return nil
+		}
+		if readErr != nil {
+			return fmt.Errorf("read firmware: %w", readErr)
+		}
+	}
 }
 
 // GetVar performs one SGD getvar query, opening and closing a connection.
