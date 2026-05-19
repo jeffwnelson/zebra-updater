@@ -22,6 +22,7 @@ func init() {
 	rootCmd.PersistentFlags().IntVar(&flagPort, "port", 9100, "printer TCP port")
 	rootCmd.PersistentFlags().DurationVar(&flagConnectTimeout, "connect-timeout", 5*time.Second, "TCP connect timeout")
 	rootCmd.PersistentFlags().DurationVar(&flagRebootTimeout, "reboot-timeout", 5*time.Minute, "max time to wait for printer reboot")
+	rootCmd.AddCommand(infoCmd)
 }
 
 func Execute() {
