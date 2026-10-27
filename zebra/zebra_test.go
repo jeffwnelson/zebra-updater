@@ -175,6 +175,20 @@ func TestCheck(t *testing.T) {
 		}
 	})
 
+	t.Run("special build replaced on opt-in", func(t *testing.T) {
+		f := newFakePrinter(t, zd621Vars)
+		f.set("appl.name", "SP93-006444A")
+		f.set("appl.version", "9321")
+		r, _ := f.printer().CheckWith(ctx, openImage(t, "V93.21.53Z", 0), UpgradeOptions{ReplaceSpecialBuild: true})
+		if !r.OK() || len(r.Warnings) == 0 {
+			t.Errorf("report = %+v", r)
+		}
+		r, _ = f.printer().CheckWith(ctx, openImage(t, "V93.22.01Z", 0), UpgradeOptions{ReplaceSpecialBuild: true})
+		if r.OK() {
+			t.Error("platform 9321 accepted a V93.22 image")
+		}
+	})
+
 	t.Run("downloads disabled", func(t *testing.T) {
 		f := newFakePrinter(t, zd621Vars)
 		f.set("device.allow_firmware_downloads", "no")

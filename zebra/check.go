@@ -22,10 +22,15 @@ type Report struct {
 // OK reports whether the upgrade may proceed.
 func (r *Report) OK() bool { return len(r.Problems) == 0 }
 
-// Check queries the printer and decides whether fw can be installed on it.
-// A non-nil error means the printer could not be queried; a failed check is
-// reported through Report.Problems.
+// Check queries the printer and decides whether fw can be installed on it
+// with default UpgradeOptions. A non-nil error means the printer could not be
+// queried; a failed check is reported through Report.Problems.
 func (p *Printer) Check(ctx context.Context, fw *Firmware) (*Report, error) {
+	return p.CheckWith(ctx, fw, UpgradeOptions{})
+}
+
+// CheckWith is Check for an upgrade that would run with opts.
+func (p *Printer) CheckWith(ctx context.Context, fw *Firmware, opts UpgradeOptions) (*Report, error) {
 	info, err := p.Info(ctx)
 	if err != nil {
 		return nil, err
@@ -33,9 +38,24 @@ func (p *Printer) Check(ctx context.Context, fw *Firmware) (*Report, error) {
 	r := &Report{Info: info, Firmware: fw.Version()}
 
 	if !versionRe.MatchString(info.Firmware) {
-		r.Problems = append(r.Problems, fmt.Sprintf(
-			"printer runs non-standard firmware %s (a Zebra special build?); installing %s would replace it",
-			info.Firmware, fw.Version()))
+		// Special builds (e.g. SP93-006444A) don't name their branch, but
+		// appl.version does: "9321" is branch V93, build series 21.
+		series, _, _ := strings.Cut(strings.TrimPrefix(fw.Version(), fw.Branch()+"."), ".")
+		platform := strings.TrimPrefix(fw.Branch(), "V") + series
+		switch {
+		case info.ApplVersion != platform:
+			r.Problems = append(r.Problems, fmt.Sprintf(
+				"printer runs non-standard firmware %s on platform %s, which does not match %s",
+				info.Firmware, orUnknown(info.ApplVersion), fw.Version()))
+		case !opts.ReplaceSpecialBuild:
+			r.Problems = append(r.Problems, fmt.Sprintf(
+				"printer runs non-standard firmware %s (a Zebra special build?); installing %s would replace it",
+				info.Firmware, fw.Version()))
+		default:
+			r.Warnings = append(r.Warnings, fmt.Sprintf(
+				"replacing special build %s with standard %s; it cannot be reinstalled from public downloads",
+				info.Firmware, fw.Version()))
+		}
 	} else if info.Branch() != fw.Branch() {
 		r.Problems = append(r.Problems, fmt.Sprintf(
 			"firmware branch %s does not match printer branch %s (%s runs %s)",

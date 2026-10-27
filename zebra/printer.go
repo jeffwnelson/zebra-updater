@@ -130,6 +130,7 @@ func (p *Printer) GetVar(ctx context.Context, name string) (string, error) {
 type Info struct {
 	Model         string // device.product_name, e.g. "ZD621"
 	Firmware      string // appl.name, e.g. "V93.21.07Z"
+	ApplVersion   string // appl.version: branch and build series, e.g. "9321"
 	LinkOSVersion string // appl.link_os_version, e.g. "6.3"
 	UniqueID      string // device.unique_id (serial number)
 	// Hostname is ip.hostname, which only exists on Link-OS 7.6 and later.
@@ -159,6 +160,7 @@ func (p *Printer) Info(ctx context.Context) (Info, error) {
 	}{
 		{"device.product_name", &info.Model, false},
 		{"appl.name", &info.Firmware, false},
+		{"appl.version", &info.ApplVersion, true},
 		{"appl.link_os_version", &info.LinkOSVersion, true},
 		{"device.unique_id", &info.UniqueID, true},
 		{"ip.hostname", &info.Hostname, true},

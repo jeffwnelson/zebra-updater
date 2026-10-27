@@ -101,7 +101,9 @@ Pre-flight refuses to send when:
 
 - the image's branch differs from the printer's running branch
 - the printer runs non-standard firmware (e.g. a Zebra special build such as
-  `SP93-006444A`), which a standard image would replace
+  `SP93-006444A`), which a standard image would replace — unless
+  `--replace-special-build` is given and the image matches the printer's
+  platform (`appl.version`, e.g. `9321` for V93.21.x)
 - `device.allow_firmware_downloads` is `no`
 - the printer has formats queued or labels remaining (`device.host_status`)
 - the printer already runs that version (unless `--force`)

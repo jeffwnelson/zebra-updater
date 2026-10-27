@@ -24,6 +24,8 @@ var (
 	flagDryRun bool
 	flagYes    bool
 	flagForce  bool
+
+	flagReplaceSpecial bool
 )
 
 var upgradeCmd = &cobra.Command{
@@ -39,6 +41,7 @@ func init() {
 	upgradeCmd.Flags().BoolVar(&flagDryRun, "dry-run", false, "run pre-flight only, do not send firmware")
 	upgradeCmd.Flags().BoolVar(&flagYes, "yes", false, "skip confirmation prompt")
 	upgradeCmd.Flags().BoolVar(&flagForce, "force", false, "reinstall even if the printer already runs this version")
+	upgradeCmd.Flags().BoolVar(&flagReplaceSpecial, "replace-special-build", false, "overwrite non-standard (special build) printer firmware with this standard image")
 }
 
 func runUpgrade(host, fwPath string) {
@@ -52,7 +55,8 @@ func runUpgrade(host, fwPath string) {
 	defer fw.Close()
 
 	p := newPrinter(host)
-	report, err := p.Check(ctx, fw)
+	opts := zebra.UpgradeOptions{Force: flagForce, ReplaceSpecialBuild: flagReplaceSpecial, Progress: progressPrinter()}
+	report, err := p.CheckWith(ctx, fw, opts)
 	if err != nil {
 		fail(exitPreflight, err)
 	}
@@ -89,7 +93,7 @@ func runUpgrade(host, fwPath string) {
 		}
 	}
 
-	err = p.Upgrade(ctx, fw, zebra.UpgradeOptions{Force: flagForce, Progress: progressPrinter()})
+	err = p.Upgrade(ctx, fw, opts)
 	var (
 		checkErr    *zebra.CheckError
 		transferErr *zebra.TransferError

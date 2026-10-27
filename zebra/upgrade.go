@@ -46,6 +46,10 @@ type Progress struct {
 type UpgradeOptions struct {
 	// Force reinstalls the image even if the printer already runs it.
 	Force bool
+	// ReplaceSpecialBuild allows overwriting non-standard printer firmware
+	// (a Zebra special build such as SP93-006444A) with a standard image of
+	// the same platform.
+	ReplaceSpecialBuild bool
 	// Progress, if set, is called from the upgrading goroutine. During
 	// PhaseSending it is called after every write.
 	Progress func(Progress)
@@ -102,7 +106,7 @@ func (e *VersionMismatchError) Error() string {
 // Errors after the transfer has begun are *TransferError, *RebootError, or
 // *VersionMismatchError.
 func (p *Printer) Upgrade(ctx context.Context, fw *Firmware, opts UpgradeOptions) error {
-	report, err := p.Check(ctx, fw)
+	report, err := p.CheckWith(ctx, fw, opts)
 	if err != nil {
 		return err
 	}
